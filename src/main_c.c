@@ -21,15 +21,25 @@ string newString(char* text) {
     foo.length = size;
     return foo;
 }
-char* to_c_str(string str) {
-    printf("Printing length and starting string\n");
-    printf("%d\n", str.length);
-    printf("%s\n", str.text);
-    str.text[str.length] = '\0';
-    return str.text;
+void printStr(string str) {
+    char toPrint [str.length + 1];
+    for(int i = 0; i < str.length; i++) {
+        toPrint[i] = str.text[i];
+    }
+    toPrint[str.length] = '\0';
+    printf("%s\n", toPrint);
 }
 
-string* split(string toSplit, string pattern) {
+char* to_c_str(string str) {
+    char* toPrint = (char *) malloc(sizeof(char) * (str.length + 1));
+    for(int i = 0; i < str.length; i++) {
+        toPrint[i] = str.text[i];
+    }
+    toPrint[str.length] = '\0';
+    return toPrint;
+}
+
+string* split(string toSplit, string pattern, int* count) {
     char* text = toSplit.text;
     int length = toSplit.length;
     int match_indexes [length];
@@ -70,25 +80,25 @@ string* split(string toSplit, string pattern) {
         string split_result;
         split_result.text = &text[lastSeenLocal];
         split_result.length = end_of_match - lastSeenLocal;
-        lastSeenLocal = end_of_match;
+        lastSeenLocal = end_of_match + pattern.length;
         ret[i] = split_result;
     }
+    *count = match_counter + 1;
     return ret;
 }
 
 int main() {
     string myStr = newString("FOOAOOAOOAOEY TOOOEY");
-    string match = newString("OAOO");
-    string* split_results = split(myStr, match);
-    printf("SIZE OF RESULTS: %lu\n", sizeof(split_results));
-    printf("SINGLE ENTRY SIZE: %lu\n", sizeof(split_results[0]));
-    int arrayEntries = sizeof(split_results)/sizeof(split_results[0]);
+    string match = newString("OO");
+    int count;
+    string* split_results = split(myStr, match, &count);
+    int arrayEntries = count;
     printf("Array Entries: %d\n", arrayEntries);
-    // Couple problems here. One is that when printing to_c_str
-    // We 0 a value, but the split strings store pointers to original
-    // so it puts 0 in the middle of the string
-    // The next is we do not know the length of the split_results
-    
-    // printf("%s\n", to_c_str(split_results[0]));
-    printf("%s\n", to_c_str(split_results[1]));
+    for(int i = 0; i < count; i++) {
+        printStr(split_results[i]);
+    }
+    char* cstr = to_c_str(split_results[1]);
+    printf("%s\n", cstr);
+    free(cstr);
+    free(split_results);
 }
