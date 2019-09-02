@@ -62,7 +62,6 @@ string* split(string toSplit, string pattern, int* count) {
         }
     }
 
-    //TODO:: YOU ARE HERE
     printf("Printing matches found: %d\n", match_counter);
     string* ret = (string *) malloc(sizeof(string) * (match_counter + 1));
     if (match_counter == 0) {
@@ -86,7 +85,7 @@ string* split(string toSplit, string pattern, int* count) {
     *count = match_counter + 1;
     return ret;
 }
-
+//sbrk
 int main() {
     string myStr = newString("FOOAOOAOOAOEY TOOOEY");
     string match = newString("OO");
