@@ -147,7 +147,7 @@ char* binaryToHex(char* binaryString) {
         }
         else {
             //OTHER CASES
-            hexString[i] = '3'; 
+            hexString[i] = 'F'; 
         }
     }
     hexString[lenOfHexStr] = '\0';
@@ -155,6 +155,7 @@ char* binaryToHex(char* binaryString) {
 }
 
 int main() {
-    printf("%s\n", hexToBinary("ABC0DEF"));
-    printf("%s\n", binaryToHex(hexToBinary("ABC0DEF")));
+    char* testString = "ABC0DEFFABC0DEF";
+    printf("%s\n", hexToBinary(testString));
+    printf("%s\n", binaryToHex(hexToBinary(testString)));
 }
