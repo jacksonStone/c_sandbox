@@ -1,2 +1,2 @@
 #!/bin/bash
-clang++ -x c main_c.c list.c -o main && ./main
+clang++ -x c main_c.c list.c table.c -o main && ./main

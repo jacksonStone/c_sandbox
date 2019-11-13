@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdio.h>
+//Add free list
 void * _make_list(size_t entry_size, int starting_entries) {
     int malloced = starting_entries * entry_size + (sizeof(int) * 3);
     void * ptr = malloc(malloced);
@@ -39,6 +41,11 @@ void set_max_list_length(void * list_ptr, int length) {
     int* start = list_ptr;
     *(start - 3) = length;
 }
+void print_list(void * list_ptr) {
+    printf("Max capacity: %d\n", get_max_list_length(list_ptr));
+    printf("Current Length: %d\n", get_list_length(list_ptr));
+    printf("Entry Size: %d\n", get_list_entry_size(list_ptr));
+}
 void _append(void ** list_ptr_ptr, void * entry) {
     void * list_ptr = * list_ptr_ptr;
     int max = get_max_list_length(list_ptr);
@@ -51,7 +58,6 @@ void _append(void ** list_ptr_ptr, void * entry) {
         *list_ptr_ptr = list_ptr;
         set_max_list_length(list_ptr, max * 2);
     }
-
     char * as_bytes = list_ptr;
     char * new_location = as_bytes + (cur * size);
     char * entry_as_chars = entry;
