@@ -1,0 +1,2 @@
+#!/bin/bash
+clang -x c -g main_c.c -o main && ./main

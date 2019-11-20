@@ -1,2 +1,2 @@
 #!/bin/bash
-clang++ -x c main_c.c -o main && ./main
+clang -g main_c.c -o main && ./main
