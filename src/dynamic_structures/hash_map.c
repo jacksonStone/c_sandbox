@@ -1,23 +1,14 @@
-#include <stdlib.h>
+#include "./list.h"
+#include "./hash_map.h"
 #include <string.h>
 #include <assert.h>
-#include "./dynamic_list.c"
 struct {
     char * key;
     void * content;
 } typedef hash_entry;
 
-struct {
-    void ** buckets;
-    char ** entry_keys;
-    int bucket_count;
-    int entry_count;
-} typedef hash_map;
-
 #define STARTING_BUCKET_COUNT 4
 #define STARTING_BUCKET_SIZE 1
-
-#define make_hash_map(type) _make_hash_map(sizeof(type))
 
 hash_map _make_hash_map(size_t sizeOfEntry) {
     hash_map map;

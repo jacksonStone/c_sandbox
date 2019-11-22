@@ -1,0 +1,2 @@
+#!/bin/bash
+clang -g ../dynamic_structures/list.c ../dynamic_structures/hash_map.c main_c.c -o main && ./main

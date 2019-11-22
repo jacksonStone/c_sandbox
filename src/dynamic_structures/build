@@ -1,0 +1,2 @@
+#!/bin/bash
+clang -g list.c hash_map.c main_c.c -o main && ./main

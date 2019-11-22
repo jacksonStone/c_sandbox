@@ -1,5 +1,8 @@
-#include "./hash_map.c"
+#include "./list.h"
+#include "./hash_map.h"
 #include <stdio.h>
+#include <string.h>
+#include <assert.h>
 int main() {
     hash_map map = make_hash_map(char *);
     printf("map.bucket_count = %d\n", map.bucket_count);
