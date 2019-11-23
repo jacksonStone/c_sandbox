@@ -7,8 +7,8 @@ typedef struct
 #define make_list(type) _make_list(sizeof(type), DEFAULT_LIST_SPACE)
 #define make_list_with_starting_length(type, length) _make_list(sizeof(type), length)
 #define append_to_list(l, entry) \
-    _add_to_list((void**) &l, sizeof(entry)),\
-    l[(_get_list_header(l)->current_len - sizeof(entry))/sizeof(entry)] = entry
+    _add_to_list((void**) &(l), sizeof(entry)),\
+    (l)[(_get_list_header((l))->current_len - sizeof(entry))/sizeof(entry)] = entry
 #define list_entry_count(l) \
  ((_get_list_header(l)->current_len)/(_get_list_header(l)->entry_size))
 #define _get_list_header(l) (((list_header *) (l)) - 1)
