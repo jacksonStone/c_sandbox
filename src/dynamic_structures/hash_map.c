@@ -29,7 +29,6 @@ unsigned int hash_string(char * key, unsigned int range) {
     }
     return hash % range;
 }
-#define add_hash_entry(map, key, content) _add_hash_entry(&map, key, content);
 void _add_hash_entry(hash_map* map, char * key, void * content) {
 
     assert(list_entry_count(map->buckets) == map->bucket_count);
