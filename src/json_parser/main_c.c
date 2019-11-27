@@ -36,7 +36,7 @@ int main() {
         "./example.json"
     };
     long total = 0;
-    int runs = 1;
+    int runs = 10000;
     for(int j = 0; j < runs; j++) {
     for(int i = 0; i < file_count; i++) {
         char * file_name = files[i];

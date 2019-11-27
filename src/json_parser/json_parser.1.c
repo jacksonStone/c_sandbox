@@ -18,7 +18,9 @@
 // 5. Figure out how to run a c-lang profiler? 
 // 6. Consider looking at chromium's source code for guidance
 // 
-
+// This parser acheives a performance of about
+// 23 microseconds to parse the example.json file, while 
+// a  browser can parse it in about 3.5-4 microseconds.
 
 #include <stdio.h>
 #include <stdlib.h>
