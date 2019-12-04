@@ -37,45 +37,24 @@ int main() {
     };
     long total = 0;
     int runs = 10000;
+    struct timeval t0;
+    struct timeval t1;
+    file_contents content = get_file_contents(files[0]);
+    json result = {};
+    gettimeofday(&t0, 0);
     for(int j = 0; j < runs; j++) {
-    for(int i = 0; i < file_count; i++) {
-        char * file_name = files[i];
-        // printf("Tokenizing file: %s\n", file_name);
-        file_contents content = get_file_contents(file_name);
-
-        struct timeval t0;
-        struct timeval t1;
-        gettimeofday(&t0, 0);
-
-        token * tokens = make_list(token);
-        char * f = content.data;
-        long index = 0;
-        tokenize_json(content.data, content.len, &tokens, &index);
-        assert(index == content.len);
-        json result;
-        int index_of_tokens = 0;
-        int len = list_entry_count(tokens);
-        convert_tokens_to_json(tokens, &result, &index_of_tokens, len);
-        
-        gettimeofday(&t1, 0);
-        total += ((t1.tv_sec-t0.tv_sec)*1000000 + t1.tv_usec-t0.tv_usec);
-        json * root = result.value.list_value;
-        hash_map third_object = root[0].value.map_value;
-        json * entry2 = get_hash_entry(third_object, "gee");
-        printf("JSON value: %f\n", entry2->value.num_value);
-
+        result.value.str_value = NULL;
+        result.value_type = 0;
+        get_json_from_string(content.data, content.len, &result);
+        // json * root = result.value.list_value;
+        // hash_map third_object = root[0].value.map_value;
         // json * entry3 = get_hash_entry(root, "fee");
         // json * entry4 = get_hash_entry(root, "bop");
         // json * child_object = get_hash_entry(entry3->value.map_value, "bar");
         // printf("JSON value: %f\n", entry2->value.num_value);
-        // printf("JSON value: %s\n", child_object->value.str_value);
-        // json * list = entry4->value.list_value;
-        // printf("JSON List value [0]: %f\n", list[0].value.num_value);
-        // printf("JSON List value [1]: %f\n", list[1].value.num_value);
-        // printf("JSON List value [2].value_type == null_value: %d\n", list[2].value_type == null_value);
-
-        // printf("\n");
-    }}
+    }
+    gettimeofday(&t1, 0);
+    total += ((t1.tv_sec-t0.tv_sec)*1000000 + (t1.tv_usec-t0.tv_usec));
     printf("AVERAGE: %f microsecods\n", total/((double)runs));
 
 }

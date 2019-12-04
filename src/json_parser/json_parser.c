@@ -10,13 +10,14 @@
 // 
 // Ideas I have to speed mine up:
 //
-// 1. Create custom allocator rather than many tiny mallocs, use throughout
+// DONE 1. Create custom allocator rather than many tiny mallocs, use throughout
 // 2. modify map to handle non-zero terminated string keys during set to avoid
 //    unnecessary mallocs.
 // 3. Stream tokens rather than creating all upfront then parsing
 // 4. Try to determine if it's a perfomance problem with map/list?
 // 5. Figure out how to run a c-lang profiler? 
 // 6. Consider looking at chromium's source code for guidance
+// 7. Add a version of list that accepts a stack during creation
 // 
 
 
@@ -29,6 +30,27 @@
 #include "../dynamic_structures/hash_map.h"
 #include "./json_parser.h"
 
+enum token_type {
+    empty_token,    
+    //Values
+    number_token,
+    string_token,
+    boolean_token,
+    null_token,
+    //Special recursive signifiers
+    open_brace,
+    close_brace,
+    open_bracket,
+    close_bracket,
+    //Seperators
+    comma,
+    colon_seperator,
+};
+struct {
+    char * text;
+    int text_length;
+    enum token_type type;
+} typedef token;
 struct {
     char * text;
     int len;
@@ -77,8 +99,7 @@ keyword keywords[keyword_len] = {
 static int is_num(char c) {
     return c >= '0' && c <= '9';
 }
-
-token tokenize_json(char * f, long len, token ** tokens, long * index) {
+token tokenize_json(char * f, long len, token ** tokens, long * index, struct little_stack* stk) {
     //Skip them space
     token new_token;
 
@@ -169,7 +190,7 @@ token tokenize_json(char * f, long len, token ** tokens, long * index) {
         token last_found;
         last_found.type = empty_token;
         while(last_found.type != close_bracket) {
-            last_found = tokenize_json(f, len, tokens, index);
+            last_found = tokenize_json(f, len, tokens, index, stk);
         }
         return new_token;
     }
@@ -181,7 +202,7 @@ token tokenize_json(char * f, long len, token ** tokens, long * index) {
         token last_found;
         last_found.type = empty_token;
         while(last_found.type != close_brace) {
-            last_found = tokenize_json(f, len, tokens, index);
+            last_found = tokenize_json(f, len, tokens, index, stk);
         }
         return new_token;
     }
@@ -191,7 +212,7 @@ token tokenize_json(char * f, long len, token ** tokens, long * index) {
     return new_token;
 }
 
-void convert_tokens_to_json(token * tokens, json * js, int * index, int token_count) {    
+void convert_tokens_to_json(token * tokens, json * js, int * index, int token_count, struct little_stack* stk) {    
     if (*index > token_count) return;
     token cur_token = tokens[*index];
     
@@ -209,7 +230,7 @@ void convert_tokens_to_json(token * tokens, json * js, int * index, int token_co
             break;
         case string_token:
         {
-            char * c_str = malloc(cur_token.text_length + 1);
+            char * c_str = alloc_stack(stk, cur_token.text_length + 1);
             for(int i = 0; i < cur_token.text_length; i++) {
                 c_str[i] = cur_token.text[i];
             }
@@ -257,16 +278,16 @@ void convert_tokens_to_json(token * tokens, json * js, int * index, int token_co
                 //Skip open brace or comma
                 *index = *index + 1;
                 key_token = tokens[*index];
-                char * map_key = malloc(key_token.text_length + 1);
+                char * map_key = alloc_stack(stk, key_token.text_length + 1);
                 for(int i = 0; i < key_token.text_length; i++) {
                     map_key[i] = key_token.text[i];
                 }
                 map_key[key_token.text_length] = '\0';
-                json * child_json_p = malloc(sizeof(json));
+                json * child_json_p = alloc_stack(stk, sizeof(json));
                 //Skip colon and key
                 *index = *index + 2;
                 //Recurse!
-                convert_tokens_to_json(tokens, child_json_p, index, token_count);
+                convert_tokens_to_json(tokens, child_json_p, index, token_count, stk);
                 add_hash_entry(new_hashmap, map_key, child_json_p);
                 //Skip value
                 *index = *index + 1;
@@ -286,7 +307,7 @@ void convert_tokens_to_json(token * tokens, json * js, int * index, int token_co
                 *index = *index + 1;
                 json child_json;
                 //Recurse!
-                convert_tokens_to_json(tokens, &child_json, index, token_count);
+                convert_tokens_to_json(tokens, &child_json, index, token_count, stk);
                 append_to_list(list, child_json);
                 *index = *index + 1;
                 next_value = tokens[*index];
@@ -295,4 +316,15 @@ void convert_tokens_to_json(token * tokens, json * js, int * index, int token_co
             break;
         }
     }
+}
+
+void get_json_from_string(char * f, long len, json* result) {
+        token * tokens = make_list(token);
+        struct little_stack stk = create_stack();
+        long index = 0;
+        tokenize_json(f, len, &tokens, &index, &stk);
+        assert(index == len);
+        int index_of_tokens = 0;
+        int token_len = list_entry_count(tokens);
+        convert_tokens_to_json(tokens, result, &index_of_tokens, token_len, &stk);
 }

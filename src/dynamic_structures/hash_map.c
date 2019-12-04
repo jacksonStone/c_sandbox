@@ -90,7 +90,8 @@ void _add_hash_entry(hash_map* map, char * key, void * content) {
 }
 void * get_hash_entry(hash_map map, char * key) {
     hash_entry * bucket = map.buckets[hash_string(key, map.bucket_count)];
-    for(int i = 0; i < list_entry_count(bucket); i++) {
+    int bucket_len = list_entry_count(bucket);
+    for(int i = 0; i < bucket_len; i++) {
         if(strcmp(bucket[i].key, key) == 0) {
             return bucket[i].content;
         }
