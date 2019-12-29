@@ -5,8 +5,6 @@
 #include <assert.h>
 int main() {
     hash_map map = make_hash_map(char *);
-    printf("map.bucket_count = %d\n", map.bucket_count);
-    printf("map.entry_count = %d\n", map.entry_count);
     int count = 10000;
     char keys[count][20];
     char contents[count][20];

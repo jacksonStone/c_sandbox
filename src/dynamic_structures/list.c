@@ -34,7 +34,5 @@ void * _add_to_list(void** list_pp, size_t size) {
 }
 #define free_list(l) _free_list((void *) l)
 void _free_list(void* l) {
-    assert(_get_list_header(l)->signature == list_signature);
     _get_list_header(l)->signature = 42;
-    free(_get_list_header(l));
 } 

@@ -1,0 +1,2 @@
+#!/bin/bash
+/usr/bin/gcc -g ../dynamic_structures/list.c ../dynamic_structures/hash_map.c ../dynamic_structures/little_bucket.c ./json_parser.c main_c.c -o main && ./main

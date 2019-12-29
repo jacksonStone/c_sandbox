@@ -11,21 +11,21 @@
 // Ideas I have to speed mine up:
 //
 // DONE 1. Create custom allocator rather than many tiny mallocs, use throughout
-// Also preallocated some memory on bucket and token list
+// Also preallocated some memory on stack and token list
 // 2. modify map to handle non-zero terminated string keys during set to avoid
 //    unnecessary mallocs.
 // 3. Stream tokens rather than creating all upfront then parsing
 // 4. Try to determine if it's a perfomance problem with map/list?
 // 5. Figure out how to run a c-lang profiler? 
 // 6. Consider looking at chromium's source code for guidance
-// 7. Add a version of list that accepts a bucket during creation
+// 7. Add a version of list that accepts a stack during creation
 // 
 //
 //
-//   C:    15.92 microseconds per run
-//   NODE:  5.47 microseconds per run
+//   C: 16.762022 microseconds per run
+//   NODE: 5.978 microseconds per run
 //   
-//   34.4% as fast as Chromium
+//   35% as fast as Chromium
 //
 
 
@@ -86,7 +86,7 @@ keyword keywords[keyword_len] = {
 static int is_num(char c) {
     return c >= '0' && c <= '9';
 }
-token tokenize_json(char * f, long len, token ** tokens, long * index, struct little_bucket* stk) {
+token tokenize_json(char * f, long len, token ** tokens, long * index, struct little_stack* stk) {
     //Skip them space
     token new_token;
 
@@ -199,7 +199,7 @@ token tokenize_json(char * f, long len, token ** tokens, long * index, struct li
     return new_token;
 }
 
-void convert_tokens_to_json(token * tokens, json * js, int * index, int token_count, struct little_bucket* stk) {    
+void convert_tokens_to_json(token * tokens, json * js, int * index, int token_count, struct little_stack* stk) {    
     if (*index > token_count) return;
     token cur_token = tokens[*index];
     
@@ -217,7 +217,7 @@ void convert_tokens_to_json(token * tokens, json * js, int * index, int token_co
             break;
         case string_token:
         {
-            char * c_str = alloc_bucket(stk, cur_token.text_length + 1);
+            char * c_str = alloc_stack(stk, cur_token.text_length + 1);
             for(int i = 0; i < cur_token.text_length; i++) {
                 c_str[i] = cur_token.text[i];
             }
@@ -265,12 +265,12 @@ void convert_tokens_to_json(token * tokens, json * js, int * index, int token_co
                 //Skip open brace or comma
                 *index = *index + 1;
                 key_token = tokens[*index];
-                char * map_key = alloc_bucket(stk, key_token.text_length + 1);
+                char * map_key = alloc_stack(stk, key_token.text_length + 1);
                 for(int i = 0; i < key_token.text_length; i++) {
                     map_key[i] = key_token.text[i];
                 }
                 map_key[key_token.text_length] = '\0';
-                json * child_json_p = alloc_bucket(stk, sizeof(json));
+                json * child_json_p = alloc_stack(stk, sizeof(json));
                 //Skip colon and key
                 *index = *index + 2;
                 //Recurse!
@@ -307,7 +307,7 @@ void convert_tokens_to_json(token * tokens, json * js, int * index, int token_co
 
 void get_json_from_string(char * f, long len, json* result) {
         token * tokens = make_list_with_starting_length(token, 100);
-        struct little_bucket stk = create_bucket_with_size(300);
+        struct little_stack stk = create_stack_with_size(300);
         long index = 0;
         tokenize_json(f, len, &tokens, &index, &stk);
         // assert(index == len);

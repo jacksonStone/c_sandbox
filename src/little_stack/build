@@ -1,2 +1,2 @@
 #!/bin/bash
-clang -g ../dynamic_structures/list.c ../dynamic_structures/little_stack.c main.c -o main && ./main
+clang -g ../dynamic_structures/list.c ../dynamic_structures/little_bucket.c main.c -o main && ./main
