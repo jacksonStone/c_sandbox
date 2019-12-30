@@ -25,7 +25,6 @@ void * _add_to_list(void** list_pp, size_t size) {
     if((len + size) > header->limit) {
         header->limit *= 2;
         header = realloc(header, header->limit + sizeof(list_header));
-        //TODO:: Figure out what still needs this!
         *list_pp = header + 1; 
     }
     header->current_len += size;
