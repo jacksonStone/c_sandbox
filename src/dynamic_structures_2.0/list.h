@@ -13,7 +13,12 @@ typedef struct
    growing_heap* gh;
 } js_list_header;
 #define signature_for_js_list 1234567
-#define make_wasteful_list(type, gh) _make_list(sizeof(type), 8, &gh)
+#define make_list_with_allocator(type, gh) _make_list(sizeof(type), 8, 0, gh)
+#define make_list_with_allocator_with_size(type, size, gh) _make_list(sizeof(type), size, 0, gh)
+#define make_list(type) _make_allocator_then_list(sizeof(type), 8)
+#define make_list_with_size(type, count) _make_allocator_then_list(sizeof(type), sizeof(type) * (count))
+#define free_list(l) _free_list(_get_list_header((l)));
+#define get_list_len(l) _get_list_header((l))->len
 #define _get_list_header(l) (((js_list_header *) (l)) - 1)
 #define append_to_list(l, entry) \
     _add_to_list((void**) &(l), sizeof(entry)),\
@@ -36,7 +41,13 @@ void* _add_to_list(void ** list_ptr, size_t size_to_add) {
     header_ptr->len += 1;
     return header_ptr + 1;
 }
-void* _make_list(size_t entry_size, size_t entry_count, growing_heap* gh) {
+void _free_list(js_list_header* header) {
+    if(header->can_be_freed) {
+        gh_free(header->gh);
+        free(header->gh);
+    }
+}
+void* _make_list(size_t entry_size, size_t entry_count, int can_be_freed, growing_heap* gh) {
     size_t size = entry_size * entry_count;
     js_list_header* entry = gh_malloc(gh, size + sizeof(js_list_header));
     js_list_header header = {
@@ -44,12 +55,18 @@ void* _make_list(size_t entry_size, size_t entry_count, growing_heap* gh) {
         size,
         entry_size,
         0,
-        0,
+        can_be_freed,
         signature_for_js_list,
         gh
     };
     entry[0] = header;
     return (void*) &(entry[1]);
+}
+void* _make_allocator_then_list(size_t entry_size, size_t entry_count) {
+    growing_heap gh = make_growing_heap();
+    growing_heap* gh_ptr = malloc(sizeof(growing_heap));
+    memcpy(gh_ptr, &gh, sizeof(growing_heap));
+    return _make_list(entry_size, entry_count, 1, gh_ptr);
 }
 
 
