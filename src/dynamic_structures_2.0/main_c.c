@@ -145,12 +145,6 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
     json_value new_node = {};
     new_node.value_type = INVALID_V;
     switch(get_next_token(jp)) {
-        case OBJECT_BEGIN_T:
-            //TODO::
-            break;
-        case LIST_BEGIN_T:
-            //TODO::
-            break;
         case STRING_T: {
             json_string js = get_next_json_string(jp);
             if (js.beginning) {
@@ -161,16 +155,68 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
         }            
         case NUMBER_T: {
             //YOU ARE HERE
+            int number_len = 0;
+            int seen_period = 0;
+            int done = 0;
+            char* num_start = &(jp->text[jp->index]);
+            while(jp->index < jp->text_len) {
+                if (done) break;
+                switch (jp->text[jp->index]) {
+                    case '-':
+                        if(number_len == 0) {
+                            number_len++;
+                            jp->index++;
+                        } else {
+                            //Negative sign not at beginning
+                            assert(0);
+                        }
+                        break;
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                    case '8':
+                    case '9':
+                        number_len++;
+                        jp->index++;
+                        break;
+                    case '.': 
+                        if(!seen_period) {
+                            seen_period = 1;
+                            number_len++;
+                            jp->index++;
+                        } else {
+                            //Two periods in number
+                            assert(0);
+                        }
+                        break;
+                    default:
+                        done = 1;
+                }
+            }
+            // TODO::See if there is a way to prevent this copying
+            char c_str[number_len + 1];
+            memcpy(c_str,num_start,number_len);
+            c_str[number_len] = '\0';
+            double num = atof(c_str);
+            new_node.value.num = num;
+            new_node.value_type = NUMBER_V;
             break;
         }
+        //TODO::
         case TRUE_T:
-            //TODO::
             break;
         case FALSE_T:
-            //TODO::
             break;
         case NULL_T:
-            //TODO::
+            break;
+        case OBJECT_BEGIN_T:
+            break;
+        case LIST_BEGIN_T:
             break;
         default:
             assert(0);
@@ -190,7 +236,7 @@ json parse_json_with_allocator(json_parser* jp, growing_heap* gh) {
 int main() {
     int allot_size = 500;    
     growing_heap gh = make_growing_heap_with_size(allot_size*32);
-    char* dummy_json = "\"Foo\"";
+    char* dummy_json = "0.6";
     //file_contents content = get_file_contents_with_allocator("../json_parser/example6.json", &gh);
     file_contents content = {
         strlen(dummy_json),
