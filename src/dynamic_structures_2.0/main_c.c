@@ -49,7 +49,7 @@ typedef struct {
         double num;
         int bool;
         void* list_value;
-        hashmap* map_value;
+        hashmap map_value;
     } value;
     enum json_value_type value_type;
 } json_value;
@@ -141,9 +141,99 @@ json_string get_next_json_string(json_parser* jp) {
     }
     return js;
 }
+json_value get_next_json_value(json_parser* jp, growing_heap* gh);
+hashmap get_json_object_hashmap(json_parser* jp, growing_heap* gh) {
+    hashmap hm = make_hashmap(gh);
+    //Open brace
+    jp->index++;
+
+    while(jp->index < jp->text_len) {
+        int handled_all_values = 0;
+        switch(get_next_token(jp)) {
+            case STRING_T: {
+                if (handled_all_values) {
+                    assert(0);//Had a string key without a seperating ,
+                }
+                json_string string_key = get_next_json_string(jp);
+                if (!string_key.beginning) {
+                    assert(0); //Failed to parse string key of object
+                }
+                if(get_next_token(jp) != COLON_T) {
+                    assert(0); //Did not have colon following string key
+                }
+                //Skip colon
+                jp->index++;
+                json_value map_value = get_next_json_value(jp, gh);
+                //TODO:: SPEED Probably an unnecessary copy!
+                if(map_value.value_type == INVALID_V) {
+                    assert(0); // Failed to parse value attribute for object
+                }
+                json_value* map_value_ptr = gh_malloc(gh, sizeof(json_value));
+                memcpy(map_value_ptr, &map_value, sizeof(json_value));
+                add_to_hashmap(&hm, string_key.beginning, string_key.len, map_value_ptr);
+                if(get_next_token(jp) != COMMA_T) {
+                    handled_all_values = 1;
+                } else {
+                    //Skip comma, and trigger another cycle of key/value pair handling
+                    jp->index++;
+                }
+                
+                break;
+            }
+            case OBJECT_END_T: {
+                //Close brace
+                jp->index++;
+                return hm;
+            }
+            default: 
+                assert(0);//Is not one of our specified tokens
+        }
+    }
+    assert(0); //Never reached the Object's End token
+    return hm;
+}
+void* get_json_list(json_parser* jp, growing_heap* gh) {
+    //[
+    jp->index++;
+    json_value* value_list = make_list_with_allocator(json_value, gh);
+    int done_with_values = 0;
+    while(jp->index < jp->text_len) {
+        switch(get_next_token(jp)) {
+            case LIST_END_T: {
+                jp->index++;
+                return value_list;
+            }
+            case INVALID_T: 
+                assert(0); //Failed to parse list entry token
+                return value_list;
+            default: {
+                if(done_with_values) {
+                    assert(0); //More entries after no comma
+                }
+                json_value v = get_next_json_value(jp, gh);
+                if(v.value_type == INVALID_V) {
+                    assert(0); //Something went wrong with the list entry creation
+                }
+                value_list = append_to_list(value_list, v);
+                if(get_next_token(jp) != COMMA_T) {
+                    done_with_values = 1;
+                } else {
+                    //Skip comma, and cycle again
+                    jp->index++;
+                }
+            }
+        }
+    }
+    assert(0); //Never reached list end
+    return value_list;
+    
+}
 json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
     json_value new_node = {};
     new_node.value_type = INVALID_V;
+    if(jp->index >= jp->text_len) {
+        assert(0); //ran out of space
+    }
     switch(get_next_token(jp)) {
         case STRING_T: {
             json_string js = get_next_json_string(jp);
@@ -259,10 +349,15 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
             }
             break;
         }
-        //TODO::
-        case OBJECT_BEGIN_T:
+        case OBJECT_BEGIN_T: {
+            new_node.value.map_value = get_json_object_hashmap(jp, gh);
+            new_node.value_type = OBJECT_V;
             break;
+        }
+        //TODO::
         case LIST_BEGIN_T:
+            new_node.value.list_value = get_json_list(jp, gh);
+            new_node.value_type = LIST_V;
             break;
         default:
             assert(0);
@@ -286,21 +381,21 @@ json parse_json_with_allocator(json_parser* jp, growing_heap* gh) {
 
 int main() {
     int allot_size = 500;    
-    growing_heap gh = make_growing_heap_with_size(allot_size*32);
-    char* dummy_json = "1.2e3";
-    //file_contents content = get_file_contents_with_allocator("../json_parser/example6.json", &gh);
-    file_contents content = {
-        strlen(dummy_json),
-        dummy_json
-    };
-    printf("%s\n", content.data);
-    json_parser jp = {
-        content.len,
-        content.data,
-        0
-    };
-    json j = parse_json_with_allocator(&jp, &gh);
-    //    int* my_ints = make_list_with_allocator(int, &gh);
+    file_contents content = get_file_contents("./example6.json");
+    int interations =  100000;
+    start_timer();
+    for(int i = 0; i < interations; i++) {
+        growing_heap gh = make_growing_heap();
+        json_parser jp = {
+            content.len,
+            content.data,
+            0
+        };
+        json j = parse_json_with_allocator(&jp, &gh);
+        gh_free(&gh);
+    }
+   
+    //    int* my_ints = make_list_with_allocator(int, &gh)
     //    my_ints = append_to_list(my_ints, 4);
     //    hashmap hm = make_hashmap(&gh);
     //    int k = 4;
@@ -310,12 +405,12 @@ int main() {
     //    free_list(my_ints);
     //    gh_free(&gh);
 
-    start_timer();
 
-    gh_free(&gh);
     //Is a no-op if you pass an allocator during list creation
 
-    printf("time: %f microsec\n", stop_timer());
+    printf("C: %f microsec\n", (stop_timer()/interations));
+    
+    
     return 0;
 }
 

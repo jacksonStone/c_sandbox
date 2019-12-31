@@ -23,6 +23,9 @@ file_contents get_file_contents(char * file_name) {
 }
 file_contents get_file_contents_with_allocator(char * file_name, growing_heap* gh) {
     FILE *f = fopen(file_name, "rb");
+    if(!f) {
+        assert(0); // Unable to open the file
+    }
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);
