@@ -157,19 +157,41 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
             //YOU ARE HERE
             int number_len = 0;
             int seen_period = 0;
+            int seen_e = 0;
             int done = 0;
             char* num_start = &(jp->text[jp->index]);
             while(jp->index < jp->text_len) {
                 if (done) break;
                 switch (jp->text[jp->index]) {
+                    
                     case '-':
                         if(number_len == 0) {
                             number_len++;
                             jp->index++;
+                        } 
+                        else if(jp->text[jp->index - 1] == 'e') {
+                            number_len++;
+                            jp->index++;
                         } else {
-                            //Negative sign not at beginning
+                            //Negative sign must appear at the start or after an e
                             assert(0);
                         }
+                        break;
+                    case '+':
+                        if(jp->text[jp->index - 1] == 'e') {
+                            number_len++;
+                            jp->index++;
+                        } else {
+                            assert(0); //Can only have + after e
+                        }
+                        break;
+                    case 'e':
+                        if(seen_e) {
+                            assert(0); // more than one e in number
+                        }
+                        seen_e = 1;
+                        number_len++;
+                        jp->index++;
                         break;
                     case '0':
                     case '1':
@@ -185,12 +207,12 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
                         jp->index++;
                         break;
                     case '.': 
-                        if(!seen_period) {
+                        if(!seen_period && !seen_e) {
                             seen_period = 1;
                             number_len++;
                             jp->index++;
                         } else {
-                            //Two periods in number
+                            //Two periods in number or period after e
                             assert(0);
                         }
                         break;
@@ -265,7 +287,7 @@ json parse_json_with_allocator(json_parser* jp, growing_heap* gh) {
 int main() {
     int allot_size = 500;    
     growing_heap gh = make_growing_heap_with_size(allot_size*32);
-    char* dummy_json = "null";
+    char* dummy_json = "1.2e3";
     //file_contents content = get_file_contents_with_allocator("../json_parser/example6.json", &gh);
     file_contents content = {
         strlen(dummy_json),
