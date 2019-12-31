@@ -8,24 +8,7 @@
 #include "../dynamic_structures/hash_map.h"
 #include "./json_parser.h"
 #include "../timer/timer.h"
-
-struct {
-    long len;
-    char* data;
-} typedef file_contents;
-file_contents get_file_contents(char * file_name) {
-    FILE *f = fopen(file_name, "rb");
-    fseek(f, 0, SEEK_END);
-    long fsize = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    char *string = malloc(fsize + 1);
-    fread(string, 1, fsize, f);
-    fclose(f);
-    file_contents content;
-    content.len = fsize;
-    content.data = string;
-    return content;
-}
+#include "../file_reader/file_reader.h"
 
 int main() {
     int file_count = 1;
