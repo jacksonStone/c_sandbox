@@ -203,17 +203,41 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
             memcpy(c_str,num_start,number_len);
             c_str[number_len] = '\0';
             double num = atof(c_str);
+
             new_node.value.num = num;
             new_node.value_type = NUMBER_V;
             break;
         }
+        case TRUE_T: {
+            if(jp->index + 3 < jp->text_len && strncmp("true", &(jp->text[jp->index]), 4) == 0) {
+               jp->index += 4;
+               new_node.value.bool = 1;
+               new_node.value_type = BOOLEAN_V;
+            } else {
+                assert(0);
+            }
+            break;
+        }
+        case FALSE_T: {
+            if(jp->index + 4 < jp->text_len && strncmp("false", &(jp->text[jp->index]), 5) == 0) {
+               jp->index += 5;
+               new_node.value_type = BOOLEAN_V;
+               new_node.value.bool = 0;
+            } else {
+                assert(0);
+            }
+            break;
+        }
+        case NULL_T: {
+            if(jp->index + 3 < jp->text_len && strncmp("null", &(jp->text[jp->index]), 4) == 0) {
+               jp->index += 4;
+               new_node.value_type = NULL_V;
+            } else {
+                assert(0);
+            }
+            break;
+        }
         //TODO::
-        case TRUE_T:
-            break;
-        case FALSE_T:
-            break;
-        case NULL_T:
-            break;
         case OBJECT_BEGIN_T:
             break;
         case LIST_BEGIN_T:
@@ -229,6 +253,11 @@ json parse_json_with_allocator(json_parser* jp, growing_heap* gh) {
         get_next_json_value(jp, gh),
         gh
     };
+    
+    //Read the whole thing
+    skip_whitespace(jp);
+    assert(jp->index == jp->text_len);
+
     return j;
 }
 
@@ -236,7 +265,7 @@ json parse_json_with_allocator(json_parser* jp, growing_heap* gh) {
 int main() {
     int allot_size = 500;    
     growing_heap gh = make_growing_heap_with_size(allot_size*32);
-    char* dummy_json = "0.6";
+    char* dummy_json = "null";
     //file_contents content = get_file_contents_with_allocator("../json_parser/example6.json", &gh);
     file_contents content = {
         strlen(dummy_json),
@@ -248,7 +277,7 @@ int main() {
         content.data,
         0
     };
-    parse_json_with_allocator(&jp, &gh);
+    json j = parse_json_with_allocator(&jp, &gh);
     //    int* my_ints = make_list_with_allocator(int, &gh);
     //    my_ints = append_to_list(my_ints, 4);
     //    hashmap hm = make_hashmap(&gh);
