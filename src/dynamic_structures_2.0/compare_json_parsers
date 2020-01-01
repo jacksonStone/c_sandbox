@@ -1,0 +1,2 @@
+#!/bin/bash
+./build && node ../json_parser/node_parser_test.js
