@@ -1,3 +1,5 @@
+//Small malloc is about 200 nanoseconds
+
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -424,21 +426,92 @@ json parse_json_with_allocator(char* data, size_t len, growing_heap* gh) {
     }
     return j;
 }
+json parse_json(char* text, int len) {
+    growing_heap* gh_ptr = malloc(sizeof(growing_heap));
+    *gh_ptr = make_growing_heap();
+    json j = parse_json_with_allocator(text, strlen(text), gh_ptr);
+    return j;
+}
+json parse_json_c_string(char* text) {
+    return parse_json(text, strlen(text));
+}
+void free_json(json* j) {
+    gh_free(j->gh);
+}
 
+json_value get_json_value(json_value j, char* path, int len) {
+    if(!(*path)) {
+        return j;
+    }
+    int index = 0;
+    char* start_position = path;
+    int is_list_entry = 0;
+    int found_period = 0;
+    while(index < len && path[index]) {
+        if(found_period) {
+            break;
+        }
+        switch(path[index]) {
+            case '\\': {
+                if(index + 1 < len) {
+                    //Skip escaped char
+                    index+=2;
+                } else { 
+                    //trailing "\"
+                    index++;
+                }
+                break;
+            }
+            case '[': {
+                is_list_entry = 1;
+                //TODO::
+            }
+            case '.': {
+                found_period = 1;
+                break;
+                //TODO::
+            }
+            default:
+                index++;
+        }
+    }
+    path = path + index;
+    if(found_period) {
+        //Skip period
+        path = path + 1;
+    }
+    if(!is_list_entry) {
+        
+        json_value* child_ptr = (json_value*) get_hashmap_entry(&(j.value.map_value), start_position, index);
+        return get_json_value(*child_ptr, path, len - index);
+    }
+    assert(0);
+    return j;
+
+}
+json_value get_json_value_c_string(json_value j, char* path) {
+    return get_json_value(j, path, strlen(path));
+}
+// double get_number_from_json(char* path) {
+
+// }
+
+// void* get_list_from_json(char* path) {
+
+// }
 
 int main() {
     int allot_size = 500;    
     file_contents content = get_file_contents("./example6.json");
-    int interations =  100000;
-    // int interations =  1;
+    //int interations =  100000;
+    int interations = 1;
     start_timer();
     for(int i = 0; i < interations; i++) {
-        growing_heap gh = make_growing_heap();
-
-        json j = parse_json_with_allocator(content.data, content.len, &gh);
-        gh_free(&gh);
+        json j = parse_json(content.data, content.len);
+        json_value jv = get_json_value_c_string(j.data, "fee.bar");
+        free_json(&j);
     }
-   
+    printf("C: %f microsec for no allocator\n", (stop_timer()/interations));
     //    int* my_ints = make_list_with_allocator(int, &gh)
     //    my_ints = append_to_list(my_ints, 4);
     //    hashmap hm = make_hashmap(&gh);
@@ -452,7 +525,6 @@ int main() {
 
     //Is a no-op if you pass an allocator during list creation
 
-    printf("C: %f microsec\n", (stop_timer()/interations));
     
     
     return 0;
