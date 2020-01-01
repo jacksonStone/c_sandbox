@@ -1,4 +1,5 @@
 //Small malloc is about 200 nanoseconds
+//Accessing JSON member is about 300 nanoseconds
 
 #include <stdio.h>
 #include <assert.h>
@@ -438,7 +439,12 @@ json parse_json_c_string(char* text) {
 void free_json(json* j) {
     gh_free(j->gh);
 }
-
+json_value error_json_value() {
+    assert(0);
+    json_value jv = {};
+    jv.value_type = INVALID_V;
+    return jv;
+}
 json_value get_json_value(json_value j, char* path, int len) {
     if(!(*path)) {
         return j;
@@ -446,9 +452,12 @@ json_value get_json_value(json_value j, char* path, int len) {
     int index = 0;
     char* start_position = path;
     int is_list_entry = 0;
+    int found_end_of_list = 0;
+    int found_end = 0;
     int found_period = 0;
+    int nonlist_chars = 0;
     while(index < len && path[index]) {
-        if(found_period) {
+        if(found_end) {
             break;
         }
         switch(path[index]) {
@@ -463,15 +472,57 @@ json_value get_json_value(json_value j, char* path, int len) {
                 break;
             }
             case '[': {
+                if(nonlist_chars) {
+                    //Ex bar[1]
+                    found_end = 1;
+                    break;
+                }
                 is_list_entry = 1;
+                index++; // [
+                int num_len = 0;
+                while(index < len) {
+                    if(found_end_of_list) {
+                        break;
+                    }
+                    switch(path[index]) {
+                        case '0': 
+                            if(num_len == 0 && (index + 1 >= len || path[index+1] != ']')) {
+                                return error_json_value(); // Cannot have numbers after a leading 0
+                            }
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                        case '7':
+                        case '8':
+                        case '9':
+                            num_len++;
+                            break;
+                        case ']':
+                            if(num_len == 0) {
+                                return error_json_value(); //No numeric value in index
+                            }
+                            found_end_of_list = 1;
+                            break;
+                        default:
+                            return error_json_value(); //Non-numeric in list
+
+                    }
+                    index++;
+                }
+                break;
                 //TODO::
             }
             case '.': {
+                found_end = 1;
                 found_period = 1;
                 break;
                 //TODO::
             }
             default:
+                nonlist_chars = 1;
                 index++;
         }
     }
@@ -481,10 +532,41 @@ json_value get_json_value(json_value j, char* path, int len) {
         path = path + 1;
     }
     if(!is_list_entry) {
-        
+        if(j.value_type != OBJECT_V) {
+            return error_json_value();//Not an object
+        }
         json_value* child_ptr = (json_value*) get_hashmap_entry(&(j.value.map_value), start_position, index);
+        if(found_period) {
+            index++;
+        }
         return get_json_value(*child_ptr, path, len - index);
     }
+    if(!found_end_of_list && is_list_entry) {
+        return error_json_value(); //Never found end of list and somehow got here
+    }
+
+    if(j.value_type != LIST_V) {
+        return error_json_value(); //Attempted to fetch an index from a non-list
+    }
+    // Handle list entry
+    // minus 2 for [ and ], plus one for '\0'
+    char num_str[index - 1];
+    for(int i = 1; i < index; i++) {
+        num_str[i - 1] = start_position[i];
+    }
+    num_str[index-2] = '\0';
+    int index_in_list = atoi(num_str);
+
+    json_value* list_value = j.value.list_value;
+    if(index_in_list >= get_list_len(list_value)) {
+        return error_json_value(); // Out of bounds of list
+    }
+    if(found_period) {
+        index++;
+    }
+    return get_json_value(list_value[index_in_list], path, len - index);
+
+
     assert(0);
     return j;
 
@@ -503,30 +585,16 @@ json_value get_json_value_c_string(json_value j, char* path) {
 int main() {
     int allot_size = 500;    
     file_contents content = get_file_contents("./example6.json");
-    //int interations =  100000;
-    int interations = 1;
+    int interations =  100000;
+    //int interations = 1;
     start_timer();
     for(int i = 0; i < interations; i++) {
         json j = parse_json(content.data, content.len);
-        json_value jv = get_json_value_c_string(j.data, "fee.bar");
+        json_value jv = get_json_value_c_string(j.data, "foo[1].bop[10]");
         free_json(&j);
     }
     printf("C: %f microsec for no allocator\n", (stop_timer()/interations));
-    //    int* my_ints = make_list_with_allocator(int, &gh)
-    //    my_ints = append_to_list(my_ints, 4);
-    //    hashmap hm = make_hashmap(&gh);
-    //    int k = 4;
-    //    add_to_hashmap_c_string(&hm, "zz1", &k);
-    //    int * res = get_hashmap_entry_c_string(&hm, "zz1");
-    //    printf("Just retrieved: %d\n", *res);
-    //    free_list(my_ints);
-    //    gh_free(&gh);
-
-
-    //Is a no-op if you pass an allocator during list creation
-
-    
-    
+   
     return 0;
 }
 
