@@ -13,6 +13,8 @@ typedef struct {
     size_t text_len;
     char* text;
     size_t index;
+    growing_heap* gh;
+    char* error_message;
 } json_parser;
 typedef struct {
     size_t len;
@@ -56,9 +58,10 @@ typedef struct {
 typedef struct {
     json_value data;
     growing_heap* gh;
+    char* error_message;
 } json;
 void skip_whitespace(json_parser* jp) {
-    while(jp->index < jp->text_len) {
+    while(jp->index < jp->text_len && !jp->error_message) {
         switch (jp->text[jp->index]) {
             case '\r':
             case '\n':
@@ -71,6 +74,45 @@ void skip_whitespace(json_parser* jp) {
         }
     }
 }
+void attach_error_message(char* cstr, json_parser* jp) {
+    if(jp->error_message) return;
+    
+    //Get region around where the error occured
+    int start_index = 0;
+    int end_index = 0;
+    size_t len = jp->text_len;
+    if(jp->text_len > jp->index + 20) {
+        end_index = jp->index + 20;
+    } else {
+        end_index = jp->text_len;
+    }
+    if(jp->index - 20 > 0) {
+        start_index = jp->index - 20;
+    } else {
+        start_index = 0;
+    }
+    int length_of_area = (end_index - start_index) + 6;
+    char area_of_error[length_of_area];
+    int char_index = 0;
+    for (int i = start_index; i < end_index; i++) {
+        if(i == jp->index) {
+            area_of_error[char_index++] = '>';
+            area_of_error[char_index++] = '>';
+            area_of_error[char_index++] = jp->text[i];
+            area_of_error[char_index++] = '<';
+            area_of_error[char_index++] = '<';
+            continue;
+        }
+        area_of_error[char_index] = jp->text[i];
+        char_index++;
+    }
+    area_of_error[length_of_area] = '\0';
+
+
+    char* error_message = gh_malloc(jp->gh, strlen(cstr) + 300);
+    sprintf(error_message, "Error at index: %zu\nArea of error:\n%s\nMessage: %s\n", jp->index, area_of_error, cstr);
+    jp->error_message = error_message;
+};
 enum json_token get_next_token(json_parser* jp) {
     skip_whitespace(jp);
     if (jp->index >= jp->text_len) return EOF_T;
@@ -108,6 +150,7 @@ enum json_token get_next_token(json_parser* jp) {
         case ':':
             return COLON_T;
         default:
+            attach_error_message("Invalid token", jp);
             return INVALID_T;
     }
 }
@@ -119,7 +162,7 @@ json_string get_next_json_string(json_parser* jp) {
     char* str_start = (jp->text + jp->index);
     int strlen = 0;
     json_string js = {};
-    while(jp->index < jp->text_len) {
+    while(jp->index < jp->text_len && !jp->error_message) {
         if(jp->text[jp->index] == '"') {
             //Skip over closed quote
             jp->index++;
@@ -141,33 +184,31 @@ json_string get_next_json_string(json_parser* jp) {
     }
     return js;
 }
-json_value get_next_json_value(json_parser* jp, growing_heap* gh);
-hashmap get_json_object_hashmap(json_parser* jp, growing_heap* gh) {
+json_value get_next_json_value(json_parser* jp);
+hashmap get_json_object_hashmap(json_parser* jp) {
+    growing_heap* gh = jp->gh;
     hashmap hm = make_hashmap(gh);
     //Open brace
     jp->index++;
-
-    while(jp->index < jp->text_len) {
-        int handled_all_values = 0;
+    int handled_all_values = 0;
+    while(jp->index < jp->text_len && !jp->error_message) {
         switch(get_next_token(jp)) {
             case STRING_T: {
                 if (handled_all_values) {
-                    assert(0);//Had a string key without a seperating ,
+                    attach_error_message("Had an additional string key after value without comma", jp);
                 }
                 json_string string_key = get_next_json_string(jp);
                 if (!string_key.beginning) {
-                    assert(0); //Failed to parse string key of object
+                    attach_error_message("Failed to parse string key of object", jp);
                 }
                 if(get_next_token(jp) != COLON_T) {
-                    assert(0); //Did not have colon following string key
+                    attach_error_message("Did not have colon following string key", jp);
                 }
                 //Skip colon
                 jp->index++;
-                json_value map_value = get_next_json_value(jp, gh);
+                json_value map_value = get_next_json_value(jp);
+                
                 //TODO:: SPEED Probably an unnecessary copy!
-                if(map_value.value_type == INVALID_V) {
-                    assert(0); // Failed to parse value attribute for object
-                }
                 json_value* map_value_ptr = gh_malloc(gh, sizeof(json_value));
                 memcpy(map_value_ptr, &map_value, sizeof(json_value));
                 add_to_hashmap(&hm, string_key.beginning, string_key.len, map_value_ptr);
@@ -186,34 +227,29 @@ hashmap get_json_object_hashmap(json_parser* jp, growing_heap* gh) {
                 return hm;
             }
             default: 
-                assert(0);//Is not one of our specified tokens
+                attach_error_message("Unrecognized token during object parsing", jp);
         }
     }
-    assert(0); //Never reached the Object's End token
+    attach_error_message("Never reached an object's close brace", jp);
     return hm;
 }
-void* get_json_list(json_parser* jp, growing_heap* gh) {
+void* get_json_list(json_parser* jp) {
+    growing_heap* gh = jp->gh;
     //[
     jp->index++;
     json_value* value_list = make_list_with_allocator(json_value, gh);
     int done_with_values = 0;
-    while(jp->index < jp->text_len) {
+    while(jp->index < jp->text_len && !jp->error_message) {
         switch(get_next_token(jp)) {
             case LIST_END_T: {
                 jp->index++;
                 return value_list;
             }
-            case INVALID_T: 
-                assert(0); //Failed to parse list entry token
-                return value_list;
             default: {
                 if(done_with_values) {
-                    assert(0); //More entries after no comma
+                    attach_error_message("More entries after no comma", jp);
                 }
-                json_value v = get_next_json_value(jp, gh);
-                if(v.value_type == INVALID_V) {
-                    assert(0); //Something went wrong with the list entry creation
-                }
+                json_value v = get_next_json_value(jp);
                 value_list = append_to_list(value_list, v);
                 if(get_next_token(jp) != COMMA_T) {
                     done_with_values = 1;
@@ -224,15 +260,15 @@ void* get_json_list(json_parser* jp, growing_heap* gh) {
             }
         }
     }
-    assert(0); //Never reached list end
+    attach_error_message("Never reached a list's close bracket", jp);
     return value_list;
     
 }
-json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
+json_value get_next_json_value(json_parser* jp) {
     json_value new_node = {};
     new_node.value_type = INVALID_V;
     if(jp->index >= jp->text_len) {
-        assert(0); //ran out of space
+        attach_error_message("Tried to get JSON value but already at the end of the text", jp);
     }
     switch(get_next_token(jp)) {
         case STRING_T: {
@@ -250,7 +286,7 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
             int seen_e = 0;
             int done = 0;
             char* num_start = &(jp->text[jp->index]);
-            while(jp->index < jp->text_len) {
+            while(jp->index < jp->text_len && !jp->error_message) {
                 if (done) break;
                 switch (jp->text[jp->index]) {
                     
@@ -263,8 +299,7 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
                             number_len++;
                             jp->index++;
                         } else {
-                            //Negative sign must appear at the start or after an e
-                            assert(0);
+                            attach_error_message("'-' must appear at the start of the number or after an 'e'", jp);
                         }
                         break;
                     case '+':
@@ -272,18 +307,26 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
                             number_len++;
                             jp->index++;
                         } else {
-                            assert(0); //Can only have + after e
+                            attach_error_message("Can only have '+' immediatly after 'e'", jp);
                         }
                         break;
                     case 'e':
                         if(seen_e) {
-                            assert(0); // more than one e in number
+                            attach_error_message("Only one 'e' is permissable in a valid number", jp);
                         }
                         seen_e = 1;
                         number_len++;
                         jp->index++;
                         break;
                     case '0':
+                        if(number_len==0) {
+                            if(jp->index+1 < jp->text_len) {
+                                char next_char = jp->text[jp->index+1];
+                                if (next_char >= '0' && next_char <= '9') {
+                                    attach_error_message("Leading zeros are not permissable", jp);
+                                }
+                            }
+                        }
                     case '1':
                     case '2':
                     case '3':
@@ -303,7 +346,7 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
                             jp->index++;
                         } else {
                             //Two periods in number or period after e
-                            assert(0);
+                            attach_error_message("Inappropriate use of '.'", jp);
                         }
                         break;
                     default:
@@ -326,7 +369,7 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
                new_node.value.bool = 1;
                new_node.value_type = BOOLEAN_V;
             } else {
-                assert(0);
+                attach_error_message("Invalid token literal", jp);
             }
             break;
         }
@@ -336,7 +379,7 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
                new_node.value_type = BOOLEAN_V;
                new_node.value.bool = 0;
             } else {
-                assert(0);
+                attach_error_message("Invalid token literal", jp);
             }
             break;
         }
@@ -345,36 +388,40 @@ json_value get_next_json_value(json_parser* jp, growing_heap* gh) {
                jp->index += 4;
                new_node.value_type = NULL_V;
             } else {
-                assert(0);
+                attach_error_message("Invalid token literal", jp);
             }
             break;
         }
         case OBJECT_BEGIN_T: {
-            new_node.value.map_value = get_json_object_hashmap(jp, gh);
+            new_node.value.map_value = get_json_object_hashmap(jp);
             new_node.value_type = OBJECT_V;
             break;
         }
-        //TODO::
         case LIST_BEGIN_T:
-            new_node.value.list_value = get_json_list(jp, gh);
+            new_node.value.list_value = get_json_list(jp);
             new_node.value_type = LIST_V;
             break;
         default:
-            assert(0);
+            attach_error_message("Unknown token", jp);
+
     }
-    assert(new_node.value_type != INVALID_V);
     return new_node; 
 }
-json parse_json_with_allocator(json_parser* jp, growing_heap* gh) {
-    json j = {
-        get_next_json_value(jp, gh),
-        gh
+json parse_json_with_allocator(char* data, size_t len, growing_heap* gh) {
+    json_parser jp = {
+        len,
+        data,
+        0,
+        gh,
+        NULL
     };
-    
-    //Read the whole thing
-    skip_whitespace(jp);
-    assert(jp->index == jp->text_len);
-
+    json j = {};
+    j.gh = jp.gh;
+    j.data = get_next_json_value(&jp);
+    if(jp.error_message) {
+        j.error_message = jp.error_message;
+        printf("%s\n", j.error_message);
+    }
     return j;
 }
 
@@ -383,15 +430,12 @@ int main() {
     int allot_size = 500;    
     file_contents content = get_file_contents("./example6.json");
     int interations =  100000;
+    // int interations =  1;
     start_timer();
     for(int i = 0; i < interations; i++) {
         growing_heap gh = make_growing_heap();
-        json_parser jp = {
-            content.len,
-            content.data,
-            0
-        };
-        json j = parse_json_with_allocator(&jp, &gh);
+
+        json j = parse_json_with_allocator(content.data, content.len, &gh);
         gh_free(&gh);
     }
    
