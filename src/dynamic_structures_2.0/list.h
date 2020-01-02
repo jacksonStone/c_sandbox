@@ -23,30 +23,44 @@ typedef struct
 #define append_to_list(l, entry) \
     _add_to_list((void**) &(l), sizeof(entry)),\
     (l)[_get_list_header((l))->len - 1] = entry
-void* _add_to_list(void ** list_ptr, size_t size_to_add) {
-    js_list_header* header_ptr = _get_list_header(*list_ptr);
-    js_list_header header = *header_ptr;
-    //Let's be safe now
-    assert(header.signature == signature_for_js_list);
-    if(header.memory_usage + size_to_add > header.memory_limit) {
-        header_ptr->memory_limit *= 2;
-        size_t new_size = header_ptr->memory_limit + sizeof(js_list_header);
-        js_list_header* new_header = gh_malloc(header.gh, new_size);
-        memcpy(new_header, header_ptr, new_size);
-        header_ptr = new_header;
-        //TODO:: Potientially deal with mem copy not cleaning up old list
-        *list_ptr = new_header + 1;
-    }
-    header_ptr->memory_usage += size_to_add;
-    header_ptr->len += 1;
-    return header_ptr + 1;
-}
+
+
 void _free_list(js_list_header* header) {
     if(header->can_be_freed) {
         gh_free(header->gh);
         free(header->gh);
     }
 }
+
+void* _add_to_list(void ** list_ptr, size_t size_to_add) {
+    js_list_header* header_ptr = _get_list_header(*list_ptr);
+    js_list_header header = *header_ptr;
+    //Let's be safe now
+    assert(header_ptr->signature == signature_for_js_list);
+    if(header_ptr->memory_usage + size_to_add > header_ptr->memory_limit) {
+        header_ptr->memory_limit *= 2;
+        size_t new_size = header_ptr->memory_limit + sizeof(js_list_header);
+        growing_heap* gh;
+        if(header_ptr->can_be_freed) {
+            gh = malloc(sizeof(growing_heap));
+            *gh = make_growing_heap();
+        } else {
+            gh = header_ptr->gh;
+        }
+        js_list_header* new_header = gh_malloc(gh, new_size);
+        memcpy(new_header, header_ptr, new_size);
+        _free_list(header_ptr);
+        if(new_header->can_be_freed) {
+            new_header-> gh = gh;
+        }
+        header_ptr = new_header;
+        *list_ptr = new_header + 1;
+    }
+    header_ptr->memory_usage += size_to_add;
+    header_ptr->len += 1;
+    return header_ptr + 1;
+}
+
 void* _make_list(size_t entry_size, size_t entry_count, int can_be_freed, growing_heap* gh) {
     size_t size = entry_size * entry_count;
     js_list_header* entry = gh_malloc(gh, size + sizeof(js_list_header));
@@ -63,9 +77,8 @@ void* _make_list(size_t entry_size, size_t entry_count, int can_be_freed, growin
     return (void*) &(entry[1]);
 }
 void* _make_allocator_then_list(size_t entry_size, size_t entry_count) {
-    growing_heap gh = make_growing_heap();
     growing_heap* gh_ptr = malloc(sizeof(growing_heap));
-    memcpy(gh_ptr, &gh, sizeof(growing_heap));
+    *gh_ptr = make_growing_heap();
     return _make_list(entry_size, entry_count, 1, gh_ptr);
 }
 

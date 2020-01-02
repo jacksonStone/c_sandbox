@@ -588,6 +588,10 @@ int main() {
     }
     printf("C: %f microsec for no allocator\n", (stop_timer()/interations));
 
+    int* l = make_list(int);
+    for(int i = 0; i < 1000; i++) {
+        append_to_list(l, i);
+    }
     return 0;
 }
 
