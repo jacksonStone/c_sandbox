@@ -79,18 +79,17 @@ void* gh_add_bucket_then_malloc(growing_heap * gh, size_t amount) {
     //Create new bucket and insert into open slot
     size_t total_size = gh->total_size;
     size_t add_size = total_size;
-    if(!add_size || (add_size < amount * 4)) {
-        add_size = amount * 4;    
+    if(!add_size || (add_size < amount)) {
+        add_size = amount;
     }
     growing_heap_bucket new_bucket = {
         0,
-        total_size,
-        malloc(total_size)
+        add_size,
+        malloc(add_size)
     };
     (gh->buckets_ptr)[next_bucket] = new_bucket;
-    gh->current_bucket = &((gh->buckets_ptr)[next_bucket]);
+    gh->current_bucket = (gh->buckets_ptr + next_bucket);
     gh->total_size = add_size + total_size;
-    //TODO:: Verify this
     gh->bucket_occupancy += 1;
     return gh_malloc(gh, amount);
 }
