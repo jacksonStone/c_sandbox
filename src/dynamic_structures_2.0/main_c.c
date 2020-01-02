@@ -583,7 +583,7 @@ int main() {
     start_timer();
     for(int i = 0; i < interations; i++) {
         json j = parse_json(content.data, content.len);
-        json_value jv = get_json_value_c_string(j.data, "foo[1].bop[10]");
+        // json_value jv = get_json_value_c_string(j.data, "foo[1].bop[10]");
         free_json(&j);
     }
     printf("C: %f microsec for no allocator\n", (stop_timer()/interations));
