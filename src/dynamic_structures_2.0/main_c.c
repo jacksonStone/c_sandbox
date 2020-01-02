@@ -574,13 +574,6 @@ json_value get_json_value(json_value j, char* path, int len) {
 json_value get_json_value_c_string(json_value j, char* path) {
     return get_json_value(j, path, strlen(path));
 }
-// double get_number_from_json(char* path) {
-
-// }
-
-// void* get_list_from_json(char* path) {
-
-// }
 
 int main() {
     int allot_size = 500;    
@@ -594,7 +587,7 @@ int main() {
         free_json(&j);
     }
     printf("C: %f microsec for no allocator\n", (stop_timer()/interations));
-   
+
     return 0;
 }
 
