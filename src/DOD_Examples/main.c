@@ -3,8 +3,9 @@
 #include <stdlib.h>
 
 int main() {
+    
     start_timer();
-    int size = 500000;
+    int size = 50000000;
     char* foo = malloc(size);
     char* boo = malloc(size);
 
@@ -18,15 +19,15 @@ int main() {
     
     double duration = stop_timer();
     printf("\nC duration in-order access is: %f milliseconds\n", duration/1000);
-    
+
     int* shuffled_list = malloc(size * sizeof(int));
     for (int i = 0; i < size; i++) {
         shuffled_list[i] = rand() % size;
     }
 
     start_timer();
-    char* foo2 = malloc(size);
-    char* boo2 = malloc(size);
+    char* foo2 = malloc(size*2);
+    char* boo2 = &foo2[size];
 
     for (int i = 0; i < size; i++) {
         foo2[shuffled_list[i]] = 'a';
