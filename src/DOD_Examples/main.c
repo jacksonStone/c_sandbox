@@ -4,9 +4,9 @@
 
 int main() {
     start_timer();
-    int size = 500000;
-    char* foo = malloc(size);
-    char* boo = malloc(size);
+    int size = 5000000;
+    char* foo = malloc(size*2);
+    char* boo = &foo[size];
 
     for (int i = 0; i < size; i++) {
         foo[i] = 'a';
@@ -18,25 +18,27 @@ int main() {
     
     double duration = stop_timer();
     printf("\nC duration in-order access is: %f milliseconds\n", duration/1000);
-    
-    int* shuffled_list = malloc(size * sizeof(int));
-    for (int i = 0; i < size; i++) {
-        shuffled_list[i] = rand() % size;
+
+    int * randNums = malloc(size * sizeof(int));
+    for(int i = 0; i < size; i++) {
+        randNums[i] = (rand() % size);
     }
 
     start_timer();
-    char* foo2 = malloc(size);
-    char* boo2 = malloc(size);
+    char* foo3 = malloc(size*2);
+    char* boo3 = &foo3[size];
 
     for (int i = 0; i < size; i++) {
-        foo2[shuffled_list[i]] = 'a';
+        foo3[randNums[i]] = 'a';
     }
 
     for (int i = 0; i < size; i++) {
-        boo2[shuffled_list[i]] = foo2[shuffled_list[i]];
+        boo3[randNums[i]] = foo3[randNums[i]];
     }
     
-    double duration2 = stop_timer();
-    printf("C duration out-of-order access is: %f milliseconds\n", duration2/1000);
+    double duration3 = stop_timer();
+    printf("C duration out-of-order access with random array is: %f milliseconds\n", (duration3)/1000);
+    printf("Runtime ratio: %f\n", (duration3/duration));
+
     return 0;
 }
