@@ -3,8 +3,10 @@
 #include <stdlib.h>
 
 int main() {
+    
     start_timer();
-    int size = 5000000;
+    int size = 50000000; //50,000,000 Bytes or ~50MB
+    
     char* foo = malloc(size*2);
     char* boo = &foo[size];
 
@@ -19,6 +21,7 @@ int main() {
     double duration = stop_timer();
     printf("\nC duration in-order access is: %f milliseconds\n", duration/1000);
 
+    //Create array of random nums
     int * randNums = malloc(size * sizeof(int));
     for(int i = 0; i < size; i++) {
         randNums[i] = (rand() % size);

@@ -1,17 +1,6 @@
-const size = 5000000;
-
-const a3 = Array(size);
-for(let i = 0; i < size; i++) {
-    a3[i] = 'a';
-}
-
-const b3 = Array(size);
-for(let i = 0; i < size; i++) {
-    b3[i] = a3[i];
-}
-
-
 let start = Date.now();
+const size = 50000000; //50,000,000 Bytes or ~50MB
+
 
 const a = Array(size);
 for(let i = 0; i < size; i++) {
@@ -26,8 +15,8 @@ for(let i = 0; i < size; i++) {
 let end = Date.now();
 console.log("\nJS duration in-order access is: " + (end - start) + " milliseconds");
 
-const shuffled = createdShuffledList(size)
 
+const shuffled = createdShuffledList(size)
 let start2 = Date.now();
 const a2 = Array(size);
 for(let i = 0; i < size; i++) {
@@ -51,7 +40,7 @@ console.log("runtime ratio: " + (end2 - start2)/(end - start));
 function createdShuffledList(size) {
     const randomInts = []
     for(let i = 0; i < size; i++) {
-        randomInts.push();
+        randomInts.push(Math.floor((Math.random()*size)));
     }
     return randomInts;
 }
